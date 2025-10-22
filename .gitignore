@@ -1,17 +1,25 @@
+# Neovim plugin gitignore
+
 # Compiled Lua sources
 luac.out
 
-# luarocks build files
+# Luarocks build files
+luarocks/
 *.src.rock
 *.zip
 *.tar.gz
 
 # Object files
+*.luac
 *.o
 *.os
 *.ko
 *.obj
 *.elf
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Precompiled Headers
 *.gch
@@ -24,6 +32,7 @@ luac.out
 *.lo
 *.def
 *.exp
+node_modules/
 
 # Shared objects (inc. Windows DLLs)
 *.dll
@@ -39,3 +48,9 @@ luac.out
 *.x86_64
 *.hex
 
+# Testing
+tests/
+spec/
+
+# Plugin manager directories
+lazy-lock.json
