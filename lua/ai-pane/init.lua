@@ -575,6 +575,21 @@ vim.api.nvim_create_user_command("AISendRange", function()
   send_visual_range()
 end, { range = true })
 
+vim.api.nvim_create_user_command("AIListPanes", function()
+  local panes = find_ai_panes()
+  if #panes == 0 then
+    vim.notify("No AI panes found.", vim.log.levels.INFO)
+    return
+  end
+
+  local pane_descriptions = {}
+  for _, pane in ipairs(panes) do
+    table.insert(pane_descriptions, format_pane_desc(pane))
+  end
+
+  vim.notify("Found AI panes:\n" .. table.concat(pane_descriptions, "\n"), vim.log.levels.INFO)
+end, {})
+
 -- Allow users to override config
 function M.setup(user_config)
   config = vim.tbl_deep_extend("force", default_config, user_config or {})
