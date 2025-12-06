@@ -18,6 +18,8 @@ local default_config = {
     Commit = {
       prompt = "Write commit message for the change with commitizen convention. Keep the title under 50 characters and wrap message at 72 characters. Format as a gitcommit code block.",
       mapping = "<leader>cpc",
+      normal_mode = "none",
+      visual_mode = "none",
     },
     Explain = {
       prompt = [[
@@ -504,7 +506,7 @@ end
 
 -- Send a prompt with optional context
 -- context_mode: "range" (visual range), "selection" (visual selection text),
---               "file" (@filename), "buffer" (buffer contents), or nil for prompt only
+--               "file" (@filename), "buffer" (buffer contents), or "none" (no context)
 local function send_prompt(prompt_text, context_mode)
   -- Special handling for buffer mode to use chunking with proper async flow
   if context_mode == "buffer" then
@@ -532,7 +534,9 @@ local function send_prompt(prompt_text, context_mode)
   -- For other modes, build the full text
   local context = ""
 
-  if context_mode == "range" then
+  if context_mode == "none" then
+    -- No context, just send the prompt
+  elseif context_mode == "range" then
     context = get_visual_range() or ""
   elseif context_mode == "selection" then
     context = get_visual_selection() or ""
