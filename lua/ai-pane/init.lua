@@ -1,4 +1,4 @@
--- Neovim + tmux integration for AI CLI commands: connect to existing or create new AI CLI panes,
+-- neovim + tmux integration for AI CLI commands: connect to existing or create new AI CLI panes,
 -- send filenames (@file syntax), buffer contents, or visual selections via tmux send-keys
 
 -- Known Issues:
@@ -84,6 +84,13 @@ If no issues found, confirm the code is well-written and explain why.
     Refactor = {
       prompt = "Refactor the following code to improve readability, maintainability, and performance without changing functionality:",
       mapping = "<leader>cpR",
+    },
+
+    UseEditor = {
+      prompt = "For editor integration, find the neovim socket by listing files matching `/tmp/nvim*`. If multiple sockets exist, ask which one to use.",
+      mapping = "<leader>cpn",
+      normal_mode = "none",
+      visual_mode = "none",
     },
   },
 }
@@ -593,6 +600,16 @@ vim.api.nvim_create_user_command("AIListPanes", function()
 
   vim.notify("Found AI panes:\n" .. table.concat(pane_descriptions, "\n"), vim.log.levels.INFO)
 end, {})
+
+vim.api.nvim_create_user_command("AIStartNvimServer", function(opts)
+  local socket_path = opts.args ~= "" and opts.args or "/tmp/nvim-ai-cli.sock"
+  local ok, err = pcall(vim.fn.serverstart, socket_path)
+  if ok then
+    vim.notify("neovim server started at: " .. socket_path)
+  else
+    vim.notify("Failed to start neovim server: " .. tostring(err), vim.log.levels.ERROR)
+  end
+end, { nargs = "?", desc = "Start neovim server for AI CLI integration" })
 
 -- Allow users to override config
 function M.setup(user_config)
