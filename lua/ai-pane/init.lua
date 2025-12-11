@@ -3,11 +3,24 @@
 
 -- Known Issues:
 -- When vim mode is enabled in AI CLI, text won't be sent unless in insert mode
+
+---@class AiPane
+---@field setup fun(user_config?: {command?: string, create_keymaps?: boolean, prompts?: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>})
 local M = {}
 
+---@class Pane
+---@field id string
+---@field session string
+---@field window string
+---@field window_index string
+---@field pane string
+---@field pane_index string
+
+---@type string|nil
 local ai_pane = nil
 
 -- Default Configuration
+---@type {command: string, create_keymaps: boolean, prompts: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
 local default_config = {
   -- Default command for AI CLI
   command = "copilot",
@@ -96,10 +109,13 @@ If no issues found, confirm the code is well-written and explain why.
 }
 
 -- Default and user configuration merged
+---@type {command: string, create_keymaps: boolean, prompts: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
 local config = {}
 
 -- Execute shell command and return trimmed output
 -- Used for tmux commands that need to capture output like pane IDs
+---@param cmd string
+---@return string|nil
 local function sh(cmd)
   local h = io.popen(cmd)
   if not h then
@@ -113,6 +129,8 @@ local function sh(cmd)
   return vim.trim(out)
 end
 
+---@param str string
+---@return string
 local function firstToUpperFull(str)
   -- Lowercase the whole string first, then capitalize the first character
   local lowerStr = str:lower()
@@ -120,12 +138,16 @@ local function firstToUpperFull(str)
 end
 
 -- Get the basename of a path (e.g., "/usr/bin/claude" -> "claude")
+---@param path string
+---@return string
 local function basename(path)
   return path:match("([^/]+)$") or path
 end
 
 -- Check if pane content contains AI CLI command indicators
 -- Returns true if the content appears to be from an AI CLI command.
+---@param content string|nil
+---@return boolean
 local function is_ai_pane_content(content)
   if not content or content == "" then
     return false
@@ -151,6 +173,7 @@ end
 -- Search all tmux panes for ones running the configured AI CLI command
 -- Returns a table of panes with contextual information
 -- Each entry: {id = "%123", session = "main", window = "editor", window_index = 1, pane = "Claude", pane_index = 2 }
+---@return table<integer, Pane>
 local function find_ai_panes()
   local panes_output = sh(
     "tmux list-panes -a -F '#{pane_id}|#{session_name}|#{window_name}|#{window_index}|#{pane_index}|#{pane_current_command}|#{pane_title}'"
@@ -200,6 +223,7 @@ local function find_ai_panes()
 end
 
 -- Check if we have a valid AI CLI pane ID stored
+---@return boolean
 local function ensure_pane()
   if not ai_pane or #ai_pane == 0 then
     return false
@@ -219,6 +243,9 @@ end
 
 -- Wait for AI CLI command to be ready by polling pane output
 -- Checks for AI CLI command prompt indicator to confirm it's ready to receive input
+---@param pane_id string
+---@param callback fun(success: boolean)|nil
+---@param timeout_ms integer|nil
 local function wait_for_ai_pane_ready(pane_id, callback, timeout_ms)
   timeout_ms = timeout_ms or 5000 -- 5 second timeout
   local start_time = vim.loop.now()
@@ -259,6 +286,7 @@ end
 
 -- Create a new tmux pane and start AI CLI command in it
 -- split_flag: "h" for horizontal (top/bottom), anything else for vertical (left/right)
+---@param split_flag string
 local function start_ai_pane(split_flag)
   local flag = (split_flag == "h") and "-v" or "-h" -- tmux flags are inverted from intuition
 
@@ -276,6 +304,8 @@ local function start_ai_pane(split_flag)
 end
 
 -- Format a pane's contextual information for display
+---@param pane Pane
+---@return string
 local function format_pane_desc(pane)
   return string.format(
     "[session %s, window %s:%s, pane %s:%s]",
@@ -288,12 +318,15 @@ local function format_pane_desc(pane)
 end
 
 -- Create a new AI pane and wait for it to be ready
+---@param callback fun(success: boolean)|nil
 local function create_new_pane(callback)
   start_ai_pane("v") -- Default to vertical split
   wait_for_ai_pane_ready(ai_pane, callback)
 end
 
 -- Connect to an existing pane without prompting
+---@param pane Pane
+---@param callback fun(success: boolean)|nil
 local function connect_to_pane(pane, callback)
   ai_pane = pane.id
   vim.notify("Connected to AI pane: " .. format_pane_desc(pane))
@@ -303,6 +336,8 @@ local function connect_to_pane(pane, callback)
 end
 
 -- Handle the case when a single AI pane exists
+---@param pane Pane
+---@param callback fun(success: boolean)|nil
 local function handle_single_pane(pane, callback)
   local pane_desc = format_pane_desc(pane)
   vim.ui.select({ "Yes", "No" }, {
@@ -325,6 +360,8 @@ local function handle_single_pane(pane, callback)
 end
 
 -- Handle the case when multiple AI panes exist
+---@param panes table<integer, Pane>
+---@param callback fun(success: boolean)|nil
 local function handle_multiple_panes(panes, callback)
   local choices = {}
   for _, pane in ipairs(panes) do
@@ -355,6 +392,7 @@ local function handle_multiple_panes(panes, callback)
 end
 
 -- Main connection logic: find existing panes or create a new one
+---@param callback fun(success: boolean)|nil
 local function connect_ai_pane(callback)
   local existing_panes = find_ai_panes()
 
@@ -369,6 +407,8 @@ end
 
 -- Send text to the AI pane via tmux send-keys
 -- Uses -- separator to prevent text starting with -- from being interpreted as tmux flags
+---@param text string
+---@param press_enter boolean|nil
 local function send_text(text, press_enter)
   local function do_send()
     local escaped_text = vim.fn.shellescape(text)
@@ -396,6 +436,7 @@ local function send_text(text, press_enter)
 end
 
 -- Get current filename or nil with error notification
+---@return string|nil
 local function get_filename()
   local filename = vim.fn.expand("%")
   if filename == "" then
@@ -405,6 +446,7 @@ local function get_filename()
   return filename
 end
 
+---@return nil
 local function send_filename()
   local filename = get_filename()
   if not filename then
@@ -416,6 +458,7 @@ end
 
 -- Get the current visual selection text
 -- Returns the selected text or nil if no selection found
+---@return string|nil
 local function get_visual_selection()
   local start_pos = vim.fn.getpos("'<")
   local end_pos = vim.fn.getpos("'>")
@@ -445,6 +488,7 @@ end
 
 -- Send the current visual selection to AI
 -- Handles both full line and partial line selections correctly
+---@return nil
 local function send_visual_selection()
   local selection_text = get_visual_selection()
   if not selection_text then
@@ -456,6 +500,7 @@ end
 
 -- Get file path with line range based on visual selection
 -- Returns reference like @home/.config/nvim/lua/claude.lua:213-215
+---@return string|nil
 local function get_visual_range()
   local filename = get_filename()
   if not filename then
@@ -474,6 +519,7 @@ end
 
 -- Send file path with line range based on visual selection to AI
 -- Example output: @home/.config/nvim/lua/claude.lua:213-215
+---@return nil
 local function send_visual_range()
   local range_ref = get_visual_range()
   if not range_ref then
@@ -485,6 +531,7 @@ end
 -- Send buffer content in manageable chunks
 -- Chunking prevents shell command length limit errors that occur with very long lines
 -- or large files (e.g., minified code, generated files)
+---@return nil
 local function send_buffer_chunks()
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, true)
 
@@ -514,6 +561,7 @@ local function send_buffer_chunks()
 end
 
 -- Send entire buffer to AI in manageable chunks
+---@return nil
 local function send_buffer()
   send_buffer_chunks()
 end
@@ -521,6 +569,9 @@ end
 -- Send a prompt with optional context
 -- context_mode: "range" (visual range), "selection" (visual selection text),
 --               "file" (@filename), "buffer" (buffer contents), or "none" (no context)
+---@param prompt_text string
+---@param context_mode string
+---@return nil
 local function send_prompt(prompt_text, context_mode)
   -- Special handling for buffer mode to use chunking with proper async flow
   if context_mode == "buffer" then
@@ -619,6 +670,7 @@ vim.api.nvim_create_user_command("AIStartNvimServer", function(opts)
 end, { nargs = "?", desc = "Start neovim server for AI CLI integration" })
 
 -- Allow users to override config
+---@param user_config? {command?: string, create_keymaps?: boolean, prompts?: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
 function M.setup(user_config)
   config = vim.tbl_deep_extend("force", default_config, user_config or {})
   if not config.command then
