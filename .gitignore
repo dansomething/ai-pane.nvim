@@ -1,5 +1,8 @@
 # Neovim plugin gitignore
 
+# Editor files
+.serena/
+
 # Compiled Lua sources
 luac.out
 
