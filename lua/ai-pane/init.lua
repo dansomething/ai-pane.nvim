@@ -119,6 +119,11 @@ local function firstToUpperFull(str)
   return (lowerStr:gsub("^%l", string.upper))
 end
 
+-- Get the basename of a path (e.g., "/usr/bin/claude" -> "claude")
+local function basename(path)
+  return path:match("([^/]+)$") or path
+end
+
 -- Check if pane content contains AI CLI command indicators
 -- Returns true if the content appears to be from an AI CLI command.
 local function is_ai_pane_content(content)
@@ -126,8 +131,9 @@ local function is_ai_pane_content(content)
     return false
   end
 
-  -- Check for command name in content
-  if string.lower(content):match(string.lower(config.command)) then
+  -- Check for command name in content (use basename in case command is a path)
+  local cmd_name = basename(config.command)
+  if string.lower(content):match(string.lower(cmd_name)) then
     return true
   end
 
@@ -154,18 +160,19 @@ local function find_ai_panes()
   end
 
   local panes = {}
+  local cmd_name = basename(config.command)
   for line in panes_output:gmatch("[^\n]+") do
     local pane_id, session, window, win_idx, pane_idx, command, title =
       line:match("^(%%[0-9]+)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|(.*)$")
     local is_ai = false
 
-    -- Check 1: Command name matches configured AI command
-    if command and command:match(config.command) then
+    -- Check 1: Command name matches configured AI command (use basename in case command is a path)
+    if command and command:match(cmd_name) then
       is_ai = true
     end
 
     -- Check 2: Pane title has AI command name
-    if title and title:match(firstToUpperFull(config.command)) then
+    if title and title:match(firstToUpperFull(cmd_name)) then
       is_ai = true
     end
 
@@ -260,7 +267,7 @@ local function start_ai_pane(split_flag)
   local pane = sh(("tmux split-window %s -P -F '#{pane_id}' %s"):format(flag, vim.fn.shellescape(run)))
   if pane and #pane > 0 then
     ai_pane = pane
-    local title = firstToUpperFull(run)
+    local title = firstToUpperFull(basename(run))
     os.execute(string.format("tmux select-pane -t %s -T %s", pane, title))
     vim.notify("Created new AI pane: " .. pane .. " (" .. flag .. ")")
   else
