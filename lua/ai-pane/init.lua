@@ -321,7 +321,9 @@ end
 ---@param callback fun(success: boolean)|nil
 local function create_new_pane(callback)
   start_ai_pane("v") -- Default to vertical split
-  wait_for_ai_pane_ready(ai_pane, callback)
+  if ai_pane ~= nil then
+    wait_for_ai_pane_ready(ai_pane, callback)
+  end
 end
 
 -- Connect to an existing pane without prompting
