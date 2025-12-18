@@ -5,7 +5,7 @@
 -- When vim mode is enabled in AI CLI, text won't be sent unless in insert mode
 
 ---@class AiPane
----@field setup fun(user_config?: {command?: string, create_keymaps?: boolean, prompts?: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>})
+---@field setup fun(user_config?: {command?: string, create_keymaps?: boolean, current_window_only?: boolean, prompts?: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>})
 local M = {}
 
 ---@class Pane
@@ -20,13 +20,15 @@ local M = {}
 local ai_pane = nil
 
 -- Default Configuration
----@type {command: string, create_keymaps: boolean, prompts: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
+---@type {command: string, create_keymaps: boolean, current_window_only: boolean, prompts: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
 local default_config = {
   -- Default command for AI CLI
   command = "copilot",
   -- Whether to create default keymaps
   create_keymaps = true,
   -- Predefined prompts for convenience
+  -- Whether to restrict AI pane search to the current tmux window only
+  current_window_only = false,
   prompts = {
     Commit = {
       prompt = "Write commit message for the change with commitizen convention. Keep the title under 50 characters and wrap message at 72 characters. Format as a gitcommit code block.",
@@ -109,7 +111,7 @@ If no issues found, confirm the code is well-written and explain why.
 }
 
 -- Default and user configuration merged
----@type {command: string, create_keymaps: boolean, prompts: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
+---@type {command: string, create_keymaps: boolean, current_window_only: boolean, prompts: table<string, {prompt: string, mapping?: string, normal_mode?: string, visual_mode?: string}>}
 local config = {}
 
 -- Execute shell command and return trimmed output
@@ -170,13 +172,17 @@ local function is_ai_pane_content(content)
   return false
 end
 
--- Search all tmux panes for ones running the configured AI CLI command
+-- Search all tmux panes for ones running the configured AI CLI command.
+-- When config.current_window_only is true, only searches the current window.
 -- Returns a table of panes with contextual information
 -- Each entry: {id = "%123", session = "main", window = "editor", window_index = 1, pane = "Claude", pane_index = 2 }
 ---@return table<integer, Pane>
 local function find_ai_panes()
+  local all_flag = config.current_window_only and "" or "-a "
   local panes_output = sh(
-    "tmux list-panes -a -F '#{pane_id}|#{session_name}|#{window_name}|#{window_index}|#{pane_index}|#{pane_current_command}|#{pane_title}'"
+    "tmux list-panes "
+      .. all_flag
+      .. "-F '#{pane_id}|#{session_name}|#{window_name}|#{window_index}|#{pane_index}|#{pane_current_command}|#{pane_title}'"
   )
   if not panes_output then
     return {}

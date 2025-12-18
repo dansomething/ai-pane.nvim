@@ -63,6 +63,10 @@ require('ai-pane').setup({
   -- Whether to create default keymaps (default: true)
   create_keymaps = true,
 
+  -- Whether to restrict AI pane search to the current tmux window only (default: false)
+  -- When false, searches all panes across all tmux windows
+  current_window_only = false,
+
   -- Predefined prompts (can be extended or modified)
   prompts = {
     Commit = {
@@ -111,6 +115,9 @@ require('ai-pane').setup({
 
   -- Disable default keymaps if you want to define your own
   create_keymaps = false,
+
+  -- Only search AI panes in the current tmux window
+  current_window_only = true,
 
   -- Add custom prompts
   prompts = {
