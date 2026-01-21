@@ -196,12 +196,12 @@ local function find_ai_panes()
     local is_ai = false
 
     -- Check 1: Command name matches configured AI command (use basename in case command is a path)
-    if command and command:match(cmd_name) then
+    if command and string.lower(command):match(string.lower(cmd_name)) then
       is_ai = true
     end
 
     -- Check 2: Pane title has AI command name
-    if title and title:match(firstToUpperFull(cmd_name)) then
+    if title and string.lower(title):match(string.lower(cmd_name)) then
       is_ai = true
     end
 
