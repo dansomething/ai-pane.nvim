@@ -28,7 +28,7 @@ local default_config = {
   create_keymaps = true,
   -- Predefined prompts for convenience
   -- Whether to restrict AI pane search to the current tmux window only
-  current_window_only = false,
+  current_window_only = true,
   prompts = {
     Commit = {
       prompt = "Write commit message for the change with commitizen convention. Keep the title under 50 characters and wrap message at 72 characters. Format as a gitcommit code block.",
