@@ -294,6 +294,15 @@ end
 -- split_flag: "h" for horizontal (top/bottom), anything else for vertical (left/right)
 ---@param split_flag string
 local function start_ai_pane(split_flag)
+  local cmd_name = config.command:match("^%S+") -- Extract first word (handles "cmd --args")
+  if vim.fn.executable(cmd_name) ~= 1 then
+    vim.notify(
+      string.format("Command '%s' not found. Please install it or check your ai-pane config.", cmd_name),
+      vim.log.levels.ERROR
+    )
+    return
+  end
+
   local flag = (split_flag == "h") and "-v" or "-h" -- tmux flags are inverted from intuition
 
   local run = config.command
