@@ -464,13 +464,13 @@ local function get_filename()
 end
 
 ---@return nil
-local function send_filename()
+local function send_filename(execute)
   local filename = get_filename()
   if not filename then
     return
   end
   -- Use @ prefix for file references (supported by Claude and similar AI tools)
-  send_text("@" .. filename, false)
+  send_text("@" .. filename .. " ", execute)
 end
 
 -- Get the current visual selection text
@@ -506,13 +506,13 @@ end
 -- Send the current visual selection to AI
 -- Handles both full line and partial line selections correctly
 ---@return nil
-local function send_visual_selection()
+local function send_visual_selection(execute)
   local selection_text = get_visual_selection()
   if not selection_text then
     vim.notify("No visual selection found.", vim.log.levels.WARN)
     return
   end
-  send_text(selection_text, false)
+  send_text(selection_text, execute)
 end
 
 -- Get file path with line range based on visual selection
@@ -528,28 +528,29 @@ local function get_visual_range()
   local end_line = vim.fn.getpos("'>")[2]
 
   if start_line == end_line then
-    return string.format("@%s:%d", filename, start_line)
+    return string.format("@%s:%d ", filename, start_line)
   else
-    return string.format("@%s:%d-%d", filename, start_line, end_line)
+    return string.format("@%s:%d-%d ", filename, start_line, end_line)
   end
 end
 
 -- Send file path with line range based on visual selection to AI
 -- Example output: @home/.config/nvim/lua/claude.lua:213-215
 ---@return nil
-local function send_visual_range()
+local function send_visual_range(execute)
   local range_ref = get_visual_range()
   if not range_ref then
     return
   end
-  send_text(range_ref, false)
+  send_text(range_ref, execute)
 end
 
 -- Send buffer content in manageable chunks
 -- Chunking prevents shell command length limit errors that occur with very long lines
 -- or large files (e.g., minified code, generated files)
+---@param execute boolean|nil
 ---@return nil
-local function send_buffer_chunks()
+local function send_buffer_chunks(execute)
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, true)
 
   -- Character-based chunking is more reliable than line-based for files with very long lines
@@ -573,14 +574,15 @@ local function send_buffer_chunks()
 
   -- Send any remaining lines in the final chunk
   if #chunk_lines > 0 then
-    send_text(table.concat(chunk_lines, "\n"), false)
+    send_text(table.concat(chunk_lines, "\n"), execute)
   end
 end
 
 -- Send entire buffer to AI in manageable chunks
+---@param execute boolean|nil
 ---@return nil
-local function send_buffer()
-  send_buffer_chunks()
+local function send_buffer(execute)
+  send_buffer_chunks(execute)
 end
 
 -- Send a prompt with optional context
@@ -625,7 +627,7 @@ local function send_prompt(prompt_text, context_mode)
   elseif context_mode == "file" then
     local filename = get_filename()
     if filename then
-      context = "@" .. filename
+      context = "@" .. filename .. " "
     end
   end
 
@@ -646,19 +648,35 @@ vim.api.nvim_create_user_command("AIConnect", function()
 end, {})
 
 vim.api.nvim_create_user_command("AISendFile", function()
-  send_filename()
+  send_filename(false)
+end, {})
+
+vim.api.nvim_create_user_command("AISendFileExecute", function()
+  send_filename(true)
 end, {})
 
 vim.api.nvim_create_user_command("AISendBuffer", function()
-  send_buffer()
+  send_buffer(false)
+end, {})
+
+vim.api.nvim_create_user_command("AISendBufferExecute", function()
+  send_buffer(true)
 end, {})
 
 vim.api.nvim_create_user_command("AISendSelection", function()
-  send_visual_selection()
+  send_visual_selection(false)
+end, { range = true })
+
+vim.api.nvim_create_user_command("AISendSelectionExecute", function()
+  send_visual_selection(true)
 end, { range = true })
 
 vim.api.nvim_create_user_command("AISendRange", function()
-  send_visual_range()
+  send_visual_range(false)
+end, { range = true })
+
+vim.api.nvim_create_user_command("AISendRangeExecute", function()
+  send_visual_range(true)
 end, { range = true })
 
 vim.api.nvim_create_user_command("AIListPanes", function()
@@ -725,11 +743,15 @@ function M.setup(user_config)
   if config.create_keymaps then
     vim.keymap.set("n", "<leader>cn", ":AIStart v<CR>", { desc = "Start AI CLI (left/right split)" })
     vim.keymap.set("n", "<leader>cN", ":AIStart h<CR>", { desc = "Start AI CLI (top/bottom split)" })
-    vim.keymap.set("n", "<leader>cc", ":AIConnect<CR>", { desc = "Connect to existing AI CLI pane" })
-    vim.keymap.set("n", "<leader>cs", ":AISendFile<CR>", { desc = "Send current filename to AI CLI pane" })
-    vim.keymap.set("n", "<leader>cb", ":AISendBuffer<CR>", { desc = "Send entire buffer to AI CLI" })
-    vim.keymap.set("v", "<leader>cS", ":AISendSelection<CR>", { desc = "Send visual selection to AI CLI" })
-    vim.keymap.set("v", "<leader>cs", ":AISendRange<CR>", { desc = "Send file path with line range to AI CLI" })
+    vim.keymap.set("n", "<leader>cc", ":AIConnect<CR>", { desc = "Connect to existing CLI agent pane" })
+    vim.keymap.set("n", "<leader>cs", ":AISendFile<CR>", { desc = "Send current filename" })
+    vim.keymap.set("n", "<leader>cS", ":AISendFileExecute<CR>", { desc = "Send current filename and execute" })
+    vim.keymap.set("n", "<leader>cb", ":AISendBuffer<CR>", { desc = "Send entire buffer" })
+    vim.keymap.set("n", "<leader>cB", ":AISendBufferExecute<CR>", { desc = "Send buffer and execute" })
+    vim.keymap.set("v", "<leader>cv", ":AISendSelection<CR>", { desc = "Send visual selection" })
+    vim.keymap.set("v", "<leader>cV", ":AISendSelectionExecute<CR>", { desc = "Send visual selection and execute" })
+    vim.keymap.set("v", "<leader>cs", ":AISendRange<CR>", { desc = "Send file path with line range" })
+    vim.keymap.set("v", "<leader>cS", ":AISendRangeExecute<CR>", { desc = "Send path with line range and execute" })
   end
 end
 
