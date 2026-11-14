@@ -253,7 +253,7 @@ end
 ---@param callback fun(success: boolean)|nil
 ---@param timeout_ms integer|nil
 local function wait_for_ai_pane_ready(pane_id, callback, timeout_ms)
-  timeout_ms = timeout_ms or 5000 -- 5 second timeout
+  timeout_ms = timeout_ms or 8000 -- 8 second timeout
   local start_time = vim.loop.now()
   local check_interval = 200 -- Check every 200ms (less aggressive)
   local check_count = 0
